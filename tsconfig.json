@@ -12,5 +12,9 @@
     "noEmit": true,
     "allowJs": true,
     "skipLibCheck": true
-  }
+  },
+  "include": [
+    "indexed-operations/src/**/*.ts",
+    "indexed-turf/src/**/*.ts"
+  ]
 }
