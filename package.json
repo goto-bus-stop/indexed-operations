@@ -1,0 +1,15 @@
+{
+  "name": "indexed-operations-workspace",
+  "description": "",
+  "author": "Renée Kooi <renee@kooi.me>",
+  "keywords": [],
+  "license": "MIT OR Apache-2.0",
+  "private": true,
+  "scripts": {
+    "test": "vitest run"
+  },
+  "type": "module",
+  "devDependencies": {
+    "vitest": "^4.0.16"
+  }
+}

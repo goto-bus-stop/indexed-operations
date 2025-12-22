@@ -1,0 +1,12 @@
+{
+  "name": "indexed-turf",
+  "description": "",
+  "version": "0.0.0",
+  "author": "Renée Kooi <renee@kooi.me>",
+  "keywords": [],
+  "license": "MIT OR Apache-2.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module"
+}
