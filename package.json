@@ -6,13 +6,13 @@
   "license": "MIT OR Apache-2.0",
   "private": true,
   "scripts": {
-    "build": "(cd indexed-operations && tsdown) && (cd indexed-turf && tsdown)",
-    "test": "vitest run && tsgo -p ."
+    "build": "(cd indexed-operations && tsdown --dts) && (cd indexed-turf && tsdown --dts)",
+    "test": "vitest run && tsc -p ."
   },
   "type": "module",
   "devDependencies": {
-    "@typescript/native-preview": "7.0.0-dev.20251222.1",
     "tsdown": "^0.18.2",
+    "typescript": "^5.9.3",
     "vitest": "^4.0.16"
   }
 }

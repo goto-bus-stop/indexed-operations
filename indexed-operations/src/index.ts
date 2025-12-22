@@ -60,6 +60,10 @@ export function createPolygonIndex (polygon: Polygon) {
 /** Create index structures for a MultiPolygon. */
 export function createMultiPolygonIndex (multiPolygon: MultiPolygon) {
   assertMultiPolygon(multiPolygon)
+
+  // TODO: flatbush index if length >= 64
+
+  return multiPolygon.map(createPolygonIndex)
 }
 
 /** Return the bounding box for a ring. */
@@ -91,21 +95,29 @@ function createRingNaturalIndex (ring: Ring) {
   /** Given a number of line segments, allocates an array to store bbox indices for all the segments. */
   function allocateNaturalIndex (numSegments: number) {
     const keysPerLevel: { from: number, to: number }[] = []
+    const numLevels = calculateLevels(numSegments)
+
     let totalKeys = 0
-    let level = 1
-    while (true) {
-      const numKeys = Math.ceil(numSegments / (kIndexSpread ** level))
-      if (numKeys <= 1) {
-        break
-      }
+    for (let i = 1; i < numLevels; i += 1) {
+      const numKeys = keysAtLevel(numLevels - i, numSegments)
       keysPerLevel.push({ from: totalKeys, to: totalKeys + numKeys })
       totalKeys += numKeys
     }
 
     const data = new Float64Array(totalKeys * 4)
-    const levels = keysPerLevel.map(({ from, to }) => data.subarray(from, to))
+    const levels = keysPerLevel.map(({ from, to }) => data.subarray(from * 4, to * 4))
 
     return levels
+
+    function keysAtLevel (level: number, numSegments: number) {
+      return Math.ceil(numSegments / (kIndexSpread ** level))
+    }
+
+    function calculateLevels (numSegments: number) {
+      let level = 1
+      for (; keysAtLevel(level, numSegments) > 1; level += 1);
+      return level
+    }
   }
 
   /** Fill in the leaf natural index array, while computing the bounding box. */
@@ -294,6 +306,16 @@ export function pointInPolygonIndex (point: Point, index: PolygonIndex): PipResu
     }
   }
   return result
+}
+
+export function pointInMultiPolygonIndex (point: Point, index: MultiPolygonIndex): PipResult {
+  for (const subindex of index) {
+    const hit = pointInPolygonIndex(point, subindex)
+    if (hit !== -1) {
+      return hit
+    }
+  }
+  return -1
 }
 
 /**
