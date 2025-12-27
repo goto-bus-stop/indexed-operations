@@ -12,6 +12,7 @@ type RingIndex = RingBBoxIndex | RingNaturalIndex
 type PolygonIndex = ReturnType<typeof createPolygonIndex>
 type MultiPolygonIndex = ReturnType<typeof createMultiPolygonIndex>
 
+// bbox indices
 const kMinX = 0
 const kMinY = 1
 const kMaxX = 2
@@ -229,27 +230,40 @@ function pointInRingNaturalIndex (point: Point, index: RingNaturalIndex): PipRes
     depth: number,
     branchStart: number,
   ): PipResult {
-    const level = index.levels[depth]!
     if (depth === index.levels.length) {
       return pointInLeafLevel(point, index.ring, branchStart)
     }
 
+    const level = index.levels[depth]!
     const end = Math.min(branchStart + kIndexSpread, level.length / 4)
     let result = -1
     for (let i = branchStart; i < end; i += 1) {
-      const minX = level[i * 4 + kMinX]!
+      // const minX = level[i * 4 + kMinX]!
       const minY = level[i * 4 + kMinY]!
-      const maxX = level[i * 4 + kMaxX]!
+      // const maxX = level[i * 4 + kMaxX]!
       const maxY = level[i * 4 + kMaxY]!
 
       if (point[1] < minY || point[1] > maxY) {
         continue
       }
+
+      // XXX: Honestly I'm very confused about this condition: if a point is to the _right_ of a segment,
+      // even if it is "outside" the segment box, a segment in that box _can_ cause the point to be a hit,
+      // so why does tg exclude it here?
+      // Notably, my code does not work if I include this. Anecdotally I find the performance acceptable
+      // without this check.
+
+      /*
       if (point[0] > maxX) {
         if (minY !== maxY && minX !== maxX) {
           continue
         }
       }
+      */
+
+      // XXX: One thing that's worth checking wrt above is: what if I use the tg pip check instead of the
+      // hao one? It could be that they behave differently? Though I think the condition excludes whole
+      // branches, so I'm not sure what difference it could make.
 
       const hit = pointInNaturalIndexBranch(point, index, depth + 1, i * kIndexSpread)
       // On boundary
