@@ -1,17 +1,29 @@
 {
   "name": "indexed-operations",
-  "description": "",
-  "version": "0.0.0",
+  "description": "Geometry library for fast, indexed point-in-polygon checks",
+  "version": "0.1.0",
   "author": "Renée Kooi <renee@kooi.me>",
-  "keywords": [],
-  "main": "./dist/index.mjs",
-  "license": "MIT OR Apache-2.0",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "bugs": {
+    "url": "https://github.com/goto-bus-stop/indexed-operations"
   },
-  "type": "module",
   "dependencies": {
     "flatbush": "^4.5.0",
     "robust-predicates": "^3.0.2"
-  }
+  },
+  "homepage": "https://github.com/goto-bus-stop/indexed-operations",
+  "keywords": [
+    "inside",
+    "point",
+    "polygon"
+  ],
+  "license": "MIT OR Apache-2.0",
+  "main": "./dist/index.mjs",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/goto-bus-stop/indexed-operations.git"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "type": "module"
 }
