@@ -1,3 +1,4 @@
+import Flatbush from 'flatbush'
 import { orient2d } from 'robust-predicates'
 
 export type BBox = [minX: number, minY: number, maxX: number, maxY: number]
@@ -20,6 +21,9 @@ const kMaxY = 3
 
 /** The amount of bboxes in the lower index level that each bbox covers in a natural index tree. */
 const kIndexSpread = 16
+
+/** Minimum amount of bboxes in a set where we would guess that indexing them is a good idea. */
+const kMinBBoxesForIndex = 64
 
 function assertPolygon (rings: Ring[]): asserts rings is [exterior: Ring, ...holes: Ring[]] {
   if (rings.length === 0) {
@@ -49,22 +53,32 @@ export function createPolygonIndex (polygon: Polygon) {
   const [exterior, ...interior] = polygon
   const exteriorIndex = createRingIndex(exterior)
   const interiorIndices: RingIndex[] = []
+  const interiorsIndex = interior.length >= kMinBBoxesForIndex ? new Flatbush(interior.length) : null
   for (let i = 0; i < interior.length; i += 1) {
-    interiorIndices.push(createRingIndex(interior[i]!))
+    const index = createRingIndex(interior[i]!)
+    interiorIndices.push(index)
+    interiorsIndex?.add(index.bbox[kMinX], index.bbox[kMinY], index.bbox[kMaxX], index.bbox[kMaxY])
   }
+  interiorsIndex?.finish()
 
-  // TODO: flatbush index if interiorIndices >= 64
-
-  return { exteriorIndex, interiorIndices }
+  return { exteriorIndex, interiorIndices, interiorsIndex }
 }
 
 /** Create index structures for a MultiPolygon. */
 export function createMultiPolygonIndex (multiPolygon: MultiPolygon) {
   assertMultiPolygon(multiPolygon)
 
-  // TODO: flatbush index if length >= 64
+  const indices = []
+  const exteriorsIndex = multiPolygon.length >= kMinBBoxesForIndex ? new Flatbush(multiPolygon.length) : null
 
-  return multiPolygon.map(createPolygonIndex)
+  for (let i = 0; i < multiPolygon.length; i += 1) {
+    const index = createPolygonIndex(multiPolygon[i]!)
+    indices.push(index)
+    exteriorsIndex?.add(index.exteriorIndex.bbox[kMinX], index.exteriorIndex.bbox[kMinY], index.exteriorIndex.bbox[kMaxX], index.exteriorIndex.bbox[kMaxY])
+  }
+  exteriorsIndex?.finish()
+
+  return { indices, exteriorsIndex }
 }
 
 /** Return the bounding box for a ring. */
@@ -307,8 +321,12 @@ export function pointInRingIndex (point: Point, index: RingIndex): PipResult {
 export function pointInPolygonIndex (point: Point, index: PolygonIndex): PipResult {
   let result = pointInRingIndex(point, index.exteriorIndex)
   if (result === 1) {
-    for (let i = 0; i < index.interiorIndices.length; i += 1) {
-      const hit = pointInRingIndex(point, index.interiorIndices[i]!)
+    const interiorIndices = index.interiorsIndex != null
+      ? searchFlatbush(point, index.interiorsIndex, index.interiorIndices)
+      : index.interiorIndices
+
+    for (let i = 0; i < interiorIndices.length; i += 1) {
+      const hit = pointInRingIndex(point, interiorIndices[i]!)
       if (hit === 0) {
         return 0
       }
@@ -322,8 +340,16 @@ export function pointInPolygonIndex (point: Point, index: PolygonIndex): PipResu
   return result
 }
 
+function searchFlatbush<T> (point: Point, index: Flatbush, elements: T[]) {
+  return index.search(point[0], point[1], point[0], point[1]).map((i) => elements[i]!)
+}
+
 export function pointInMultiPolygonIndex (point: Point, index: MultiPolygonIndex): PipResult {
-  for (const subindex of index) {
+  const indices = index.exteriorsIndex != null
+    ? searchFlatbush(point, index.exteriorsIndex, index.indices)
+    : index.indices
+
+  for (const subindex of indices) {
     const hit = pointInPolygonIndex(point, subindex)
     if (hit !== -1) {
       return hit
