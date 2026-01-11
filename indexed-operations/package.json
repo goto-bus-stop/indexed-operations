@@ -25,5 +25,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "type": "module"
+  "type": "module",
+  "devDependencies": {
+    "@turf/boolean-point-in-polygon": "^7.3.1"
+  }
 }
