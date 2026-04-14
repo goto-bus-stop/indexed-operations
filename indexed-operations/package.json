@@ -27,6 +27,7 @@
   },
   "type": "module",
   "devDependencies": {
+    "@turf/bbox": "^7.3.1",
     "@turf/boolean-point-in-polygon": "^7.3.1"
   }
 }

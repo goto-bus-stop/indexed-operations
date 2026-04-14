@@ -37,6 +37,16 @@ function assertMultiPolygon (polygons: Polygon[]): asserts polygons is [exterior
   }
 }
 
+/** Return the bounding box for a polygon index. */
+export function getPolygonBBox (index: PolygonIndex) {
+  return index.exteriorIndex.bbox
+}
+
+/** Return the bounding box for a MultiPolygon index. */
+export function getMultiPolygonBBox (index: MultiPolygonIndex) {
+  return index.bbox
+}
+
 /** Create index structures for a ring. Normally you would use `createPolygonIndex`. */
 export function createRingIndex (ring: Ring): RingIndex {
   if (ring.length < kIndexSpread * 2) {
@@ -70,15 +80,20 @@ export function createMultiPolygonIndex (multiPolygon: MultiPolygon) {
 
   const indices = []
   const exteriorsIndex = multiPolygon.length >= kMinBBoxesForIndex ? new Flatbush(multiPolygon.length) : null
+  const bbox: BBox = [Infinity, Infinity, -Infinity, -Infinity]
 
   for (let i = 0; i < multiPolygon.length; i += 1) {
     const index = createPolygonIndex(multiPolygon[i]!)
     indices.push(index)
-    exteriorsIndex?.add(index.exteriorIndex.bbox[kMinX], index.exteriorIndex.bbox[kMinY], index.exteriorIndex.bbox[kMaxX], index.exteriorIndex.bbox[kMaxY])
+
+    const thisBBox = index.exteriorIndex.bbox
+    expandBBox(bbox, thisBBox)
+
+    exteriorsIndex?.add(thisBBox[kMinX], thisBBox[kMinY], thisBBox[kMaxX], thisBBox[kMaxY])
   }
   exteriorsIndex?.finish()
 
-  return { indices, exteriorsIndex }
+  return { indices, exteriorsIndex, bbox }
 }
 
 /** Return the bounding box for a ring. */
@@ -203,7 +218,8 @@ function createRingNaturalIndex (ring: Ring) {
   }
 }
 
-type PipResult = -1 | 0 | 1
+/** Result of a point-in-polygon check: -1 if the point is not inside; 0 if the point is on a border; 1 if the point is inside. */
+export type PipResult = -1 | 0 | 1
 
 function pointInBBox (point: Point, bbox: BBox) {
   return point[0] >= bbox[kMinX] && point[0] <= bbox[kMaxX] && point[1] >= bbox[kMinY] && point[1] <= bbox[kMaxY]
@@ -345,6 +361,10 @@ function searchFlatbush<T> (point: Point, index: Flatbush, elements: T[]) {
 }
 
 export function pointInMultiPolygonIndex (point: Point, index: MultiPolygonIndex): PipResult {
+  if (!pointInBBox(point, index.bbox)) {
+    return -1
+  }
+
   const indices = index.exteriorsIndex != null
     ? searchFlatbush(point, index.exteriorsIndex, index.indices)
     : index.indices

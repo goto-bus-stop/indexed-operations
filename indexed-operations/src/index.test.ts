@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest'
-import { createPolygonIndex, pointInPolygonIndex, type Point, type Polygon } from './index'
+import turfBBox from '@turf/bbox'
+import { createMultiPolygonIndex, createPolygonIndex, pointInPolygonIndex, type Point, type Polygon } from './index'
+import svalbard from '../../fixtures/svalbard.geo.json' with { type: 'json' }
 
 function inside (point: Point, polygon: Polygon) {
   const index = createPolygonIndex(polygon)
@@ -103,5 +105,28 @@ describe('floatingPointSimpler', () => {
 
   test('is just outside left edge', () => {
     expect(inside([1.111111111110, 1.511111111111], polygon)).toBe(-1)
+  })
+})
+
+describe('multiPolygon', () => {
+  test('computes a bounding box', () => {
+    const mp = svalbard.features[0]!.geometry.coordinates as [number, number][][][]
+    const index = createMultiPolygonIndex(mp)
+    expect(index.bbox).toEqual(turfBBox(svalbard.features[0]!))
+  })
+
+  test('returns a default bounding box when there are no polygons', () => {
+    const multiPolygonWithoutPolygons = {
+      type: 'Feature',
+      geometry: {
+        type: 'MultiPolygon',
+        coordinates: [],
+      },
+      properties: {},
+    }
+    const index = createMultiPolygonIndex(multiPolygonWithoutPolygons.geometry.coordinates)
+    expect(index.bbox).toEqual([Infinity, Infinity, -Infinity, -Infinity])
+    // Make sure the above matches turf!
+    expect(index.bbox).toEqual(turfBBox(multiPolygonWithoutPolygons))
   })
 })
