@@ -7,12 +7,14 @@
   "private": true,
   "scripts": {
     "build": "(cd indexed-operations && tsdown --dts) && (cd indexed-turf && tsdown --dts)",
+    "bench": "vitest bench run",
     "test": "vitest run && tsc -p ."
   },
   "type": "module",
   "devDependencies": {
-    "tsdown": "^0.22.4",
-    "typescript": "^5.9.3",
-    "vitest": "^4.0.16"
+    "@types/node": "^26.6.5",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
   }
 }

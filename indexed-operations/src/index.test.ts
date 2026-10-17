@@ -1,11 +1,26 @@
+import fs from 'node:fs/promises'
 import { describe, expect, test } from 'vitest'
 import turfBBox from '@turf/bbox'
 import { createMultiPolygonIndex, createPolygonIndex, pointInPolygonIndex, type Point, type Polygon } from './index'
-import svalbard from '../../fixtures/svalbard.geo.json' with { type: 'json' }
+
+const svalbard: GeoJSON.FeatureCollection<GeoJSON.MultiPolygon> = JSON.parse(
+  await fs.readFile(new URL(import.meta.resolve('../../fixtures/svalbard.geo.json')), 'utf8'),
+)
 
 function inside (point: Point, polygon: Polygon) {
   const index = createPolygonIndex(polygon)
   return pointInPolygonIndex(point, index)
+}
+
+/**
+ * Cast any GeoJSON-style array that represents positions as `number[]` to an array that represents positions as a tuple.
+ *
+ * This does not do any runtime checks so you better be sure that you've actually got 2D coordinates!
+ */
+function castCoordinates<T> (value: T) {
+  type CastCoordinates<T> = T extends GeoJSON.Position ? [number, number]
+    : (T extends unknown[] ? CastCoordinates<T[number]>[] : never)
+  return value as CastCoordinates<T>
 }
 
 // Tests adapted from point-in-polygon-hao:
@@ -116,7 +131,7 @@ describe('multiPolygon', () => {
   })
 
   test('returns a default bounding box when there are no polygons', () => {
-    const multiPolygonWithoutPolygons = {
+    const multiPolygonWithoutPolygons: GeoJSON.Feature<GeoJSON.MultiPolygon> = {
       type: 'Feature',
       geometry: {
         type: 'MultiPolygon',
@@ -124,7 +139,7 @@ describe('multiPolygon', () => {
       },
       properties: {},
     }
-    const index = createMultiPolygonIndex(multiPolygonWithoutPolygons.geometry.coordinates)
+    const index = createMultiPolygonIndex(castCoordinates(multiPolygonWithoutPolygons.geometry.coordinates))
     expect(index.bbox).toEqual([Infinity, Infinity, -Infinity, -Infinity])
     // Make sure the above matches turf!
     expect(index.bbox).toEqual(turfBBox(multiPolygonWithoutPolygons))

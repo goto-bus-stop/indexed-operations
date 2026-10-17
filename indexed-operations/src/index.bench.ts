@@ -1,9 +1,28 @@
-import { bench, describe, expect } from 'vitest'
-import swedenLand from '../../fixtures/sweden-land.geo.json' with { type: 'json' }
-import swedenMaritime from '../../fixtures/sweden-maritime.geo.json' with { type: 'json' }
-import swedenSimple from '../../fixtures/sweden-simple.geo.json' with { type: 'json' }
+import fs from 'node:fs/promises'
+import { bench, test, expect } from 'vitest'
 import { createMultiPolygonIndex, createPolygonIndex, pointInMultiPolygonIndex, pointInPolygonIndex } from '.'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
+
+const swedenLand: GeoJSON.FeatureCollection<GeoJSON.MultiPolygon> = JSON.parse(
+  await fs.readFile(new URL(import.meta.resolve('../../fixtures/sweden-land.geo.json')), 'utf8'),
+)
+const swedenMaritime: GeoJSON.FeatureCollection<GeoJSON.Polygon> = JSON.parse(
+  await fs.readFile(new URL(import.meta.resolve('../../fixtures/sweden-maritime.geo.json')), 'utf8'),
+)
+const swedenSimple: GeoJSON.FeatureCollection<GeoJSON.Polygon> = JSON.parse(
+  await fs.readFile(new URL(import.meta.resolve('../../fixtures/sweden-simple.geo.json')), 'utf8'),
+)
+
+/**
+ * Cast any GeoJSON-style array that represents positions as `number[]` to an array that represents positions as a tuple.
+ *
+ * This does not do any runtime checks so you better be sure that you've actually got 2D coordinates!
+ */
+function castCoordinates<T> (value: T) {
+  type CastCoordinates<T> = T extends GeoJSON.Position ? [number, number]
+    : (T extends unknown[] ? CastCoordinates<T[number]>[] : never)
+  return value as CastCoordinates<T>
+}
 
 const insideSwedenPoints: GeoJSON.FeatureCollection<GeoJSON.Point> = {
   type: 'FeatureCollection',
@@ -531,90 +550,99 @@ const allPoints: GeoJSON.FeatureCollection<GeoJSON.Point> = {
 }
 */
 
-describe('create multiPolygon index', () => {
-  bench('create index', () => {
-    const _index = createMultiPolygonIndex(swedenLand.features[0].geometry.coordinates)
-  })
+test('create multiPolygon index', async ({ bench }) => {
+  await bench('create index', () => {
+    const _index = createMultiPolygonIndex(castCoordinates(swedenLand.features[0]!.geometry.coordinates))
+  }).run()
 })
 
-describe('very complex multi-polygon', () => {
-  const index = createMultiPolygonIndex(swedenLand.features[0].geometry.coordinates)
+test('very complex multi-polygon', async ({ bench }) => {
+  const index = createMultiPolygonIndex(castCoordinates(swedenLand.features[0]!.geometry.coordinates))
 
-  bench('search index', () => {
+  const searchIndex = bench('search index', () => {
     for (const point of insideSwedenPoints.features) {
-      expect(pointInMultiPolygonIndex(point.geometry.coordinates, index)).toBe(1)
+      expect(pointInMultiPolygonIndex(castCoordinates(point.geometry.coordinates), index)).toBe(1)
     }
     for (const point of outsideSwedenPoints.features) {
-      expect(pointInMultiPolygonIndex(point.geometry.coordinates, index)).toBe(-1)
+      expect(pointInMultiPolygonIndex(castCoordinates(point.geometry.coordinates), index)).toBe(-1)
     }
   })
 
-  bench('search with turf, unindexed', () => {
+  const searchUnindexed = bench('search with turf, unindexed', () => {
     for (const point of insideSwedenPoints.features) {
-      expect(booleanPointInPolygon(point, swedenLand.features[0])).toBe(true)
+      expect(booleanPointInPolygon(point, swedenLand.features[0]!)).toBe(true)
     }
     for (const point of outsideSwedenPoints.features) {
-      expect(booleanPointInPolygon(point, swedenLand.features[0])).toBe(false)
+      expect(booleanPointInPolygon(point, swedenLand.features[0]!)).toBe(false)
     }
   })
-})
 
-describe('create mainland maritime borders polygon index', () => {
-  bench('create index', () => {
-    const _index = createPolygonIndex(swedenMaritime.features[0].geometry.coordinates)
+  await bench.compare(searchIndex, searchUnindexed, {
+    // The turf one takes a loooong time
+    iterations: 16,
   })
 })
 
-describe('sweden mainland maritime borders polygon', () => {
-  const index = createPolygonIndex(swedenMaritime.features[0].geometry.coordinates)
+test('create mainland maritime borders polygon index', async ({ bench }) => {
+  await bench('create index', () => {
+    const _index = createPolygonIndex(castCoordinates(swedenMaritime.features[0]!.geometry.coordinates))
+  }).run()
+})
 
-  bench('search index', () => {
+test('sweden mainland maritime borders polygon', async ({ bench }) => {
+  const index = createPolygonIndex(castCoordinates(swedenMaritime.features[0]!.geometry.coordinates))
+
+  const searchIndex = bench('search index', () => {
     // Not actually asserting the result here because it will be different from the land border polygon :)
     for (const point of insideSwedenPoints.features) {
-      expect(pointInPolygonIndex(point.geometry.coordinates, index)).toBeTypeOf('number')
+      expect(pointInPolygonIndex(castCoordinates(point.geometry.coordinates), index)).toBeTypeOf('number')
     }
     for (const point of outsideSwedenPoints.features) {
-      expect(pointInPolygonIndex(point.geometry.coordinates, index)).toBeTypeOf('number')
+      expect(pointInPolygonIndex(castCoordinates(point.geometry.coordinates), index)).toBeTypeOf('number')
     }
   })
 
-  bench('search with turf, unindexed', () => {
+  const searchUnindexed = bench('search with turf, unindexed', () => {
     // Not actually asserting the result here because it will be different from the land border polygon :)
     for (const point of insideSwedenPoints.features) {
-      expect(booleanPointInPolygon(point, swedenMaritime.features[0])).toBeTypeOf('boolean')
+      expect(booleanPointInPolygon(point, swedenMaritime.features[0]!)).toBeTypeOf('boolean')
     }
     for (const point of outsideSwedenPoints.features) {
-      expect(booleanPointInPolygon(point, swedenMaritime.features[0])).toBeTypeOf('boolean')
+      expect(booleanPointInPolygon(point, swedenMaritime.features[0]!)).toBeTypeOf('boolean')
     }
   })
+
+  await bench.compare(searchIndex, searchUnindexed)
 })
 
-describe('create simplified maritime borders polygon index', () => {
-  bench('create index', () => {
-    const _index = createPolygonIndex(swedenSimple.features[0].geometry.coordinates)
-  })
+test('create simplified maritime borders polygon index', async ({ bench }) => {
+  await bench('create index', () => {
+    const _index = createPolygonIndex(castCoordinates(swedenSimple.features[0]!.geometry.coordinates))
+  }).run()
 })
 
-describe('sweden mainland very simplified maritime borders polygon', () => {
-  const index = createPolygonIndex(swedenSimple.features[0].geometry.coordinates)
+test('sweden mainland very simplified maritime borders polygon', async ({ bench }) => {
+  const index = createPolygonIndex(castCoordinates(swedenSimple.features[0]!.geometry.coordinates))
 
-  bench('search index', () => {
+  const searchIndex = bench('search index', () => {
     // Not actually asserting the result here because it will be different from the land border polygon :)
     for (const point of insideSwedenPoints.features) {
-      expect(pointInPolygonIndex(point.geometry.coordinates, index)).toBeTypeOf('number')
+      expect(pointInPolygonIndex(castCoordinates(point.geometry.coordinates), index)).toBeTypeOf('number')
     }
     for (const point of outsideSwedenPoints.features) {
-      expect(pointInPolygonIndex(point.geometry.coordinates, index)).toBeTypeOf('number')
+      expect(pointInPolygonIndex(castCoordinates(point.geometry.coordinates), index)).toBeTypeOf('number')
     }
   })
 
-  bench('search with turf, unindexed', () => {
+  const searchUnindexed = bench('search with turf, unindexed', () => {
     // Not actually asserting the result here because it will be different from the land border polygon :)
     for (const point of insideSwedenPoints.features) {
-      expect(booleanPointInPolygon(point, swedenSimple.features[0])).toBeTypeOf('boolean')
+      expect(booleanPointInPolygon(point, swedenSimple.features[0]!)).toBeTypeOf('boolean')
     }
     for (const point of outsideSwedenPoints.features) {
-      expect(booleanPointInPolygon(point, swedenSimple.features[0])).toBeTypeOf('boolean')
+      expect(booleanPointInPolygon(point, swedenSimple.features[0]!)).toBeTypeOf('boolean')
     }
   })
+
+  await bench.compare(searchIndex, searchUnindexed)
 })
