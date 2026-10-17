@@ -1,3 +1,5 @@
 packages:
   - indexed-operations
   - indexed-turf
+allowBuilds:
+  esbuild: true

@@ -22,9 +22,6 @@
     "type": "git",
     "url": "git://github.com/goto-bus-stop/indexed-operations.git"
   },
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "type": "module",
   "devDependencies": {
     "@turf/bbox": "^7.3.1",
