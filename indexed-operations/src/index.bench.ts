@@ -1,5 +1,5 @@
 import fs from 'node:fs/promises'
-import { bench, test, expect } from 'vitest'
+import { test, expect } from 'vitest'
 import { createMultiPolygonIndex, createPolygonIndex, pointInMultiPolygonIndex, pointInPolygonIndex } from '.'
 import booleanPointInPolygon from '@turf/boolean-point-in-polygon'
 
